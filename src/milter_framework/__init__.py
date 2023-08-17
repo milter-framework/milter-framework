@@ -1,7 +1,7 @@
 import pkgutil
 import logging
 
-from milter_framework._version import version
+from milter_framework._version import __version__ as version
 from milter_framework import configuration
 
 from milter_framework.milter_framework import milter_wrapper
