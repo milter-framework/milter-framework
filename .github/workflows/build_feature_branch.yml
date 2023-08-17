@@ -109,7 +109,7 @@ jobs:
         id: prepare_build_env
         shell: bash
         run: |
-          apt-get install libmilter libmilter-dev make gcc libgcc libc-dev
+          sudo apt-get install libmilter libmilter-dev make gcc libgcc libc-dev
           python3 -m pip install --upgrade pip
           python3 -m pip install setuptools wheel twine
           python3 -m pip install -r requirements.txt
