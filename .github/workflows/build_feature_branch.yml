@@ -120,7 +120,7 @@ jobs:
         shell: bash
         run: |
           make clean build
-          cat .build_artifacts
+          [[ -f ".build_artifacts" ]] && cat .build_artifacts
 
           echo "artifacts_list_filename=${PWD}/.build_artifacts" >> "${GITHUB_OUTPUT}"
 

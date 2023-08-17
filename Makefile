@@ -14,6 +14,7 @@ build:
 #	python3 setup.py sdist bdist_wheel
 	python3 -m pip install -r requirements.txt
 	python3 -m pip wheel --no-build-isolation -w "$(BUILD_DIR)" --src "${SRC_MODULE_DIR}" .
+	echo "$(PROG)" >> .build_artifacts
 
 install:
 	python3 -m pip uninstall -y "$(MODULE_NAME)"
