@@ -97,17 +97,31 @@ jobs:
           fetch-depth: 0
 
 
-      - name: SonarCloud Scan
-        id: sonarcloud_scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_SCANNER_OPTS: >-
-            -Dsonar.projectKey=${{ github.event.repository.name }}
-            -Dsonar.organization=${{ github.repository_owner }}
-            -Dsonar.sources=.
-            -Dsonar.verbose=true
+
+      - name: Set up Python3
+        id: setup_python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+
+      - name: Prepare environment
+        id: prepare_build_env
+        shell: bash
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install setuptools wheel twine
+          python3 -m pip install -r requirements.txt
+
+
+      - name: Build python package
+        id: run_build
+        shell: bash
+        run: |
+          make clean build
+          cat .build_artifacts
+
+          echo "artifacts_list_filename=${PWD}/.build_artifacts" >> "${GITHUB_OUTPUT}"
 
 
       - name: Send notification on build completion
