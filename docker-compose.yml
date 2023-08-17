@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+
+  postfix-relay:
+    image: reinventedstuff/postfix-docker:3.7.3
+    container_name: postfix-relay
+    ports:
+      - 25:25
+    volumes:
+      - ./docker/etc/postfix-relay:/etc/postfix
+      - ./docker/var/log:/var/log
+      - ./docker/srv/vmail:/srv/vmail
+
+  postfix-maildir:
+    image: reinventedstuff/postfix-docker:3.7.3
+    container_name: postfix-maildir
+    ports:
+      - 10025:25
+    volumes:
+      - ./docker/etc/postfix-maildir:/etc/postfix
+      - ./docker/var/log:/var/log
+      - ./docker/srv/vmail:/srv/vmail
+
+  postfix-milter-framework:
+    container_name: postfix-milter-framework
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - 19000:19000
+      - 19001:19001
+    volumes:
+      - ./docker/var/log:/var/log
+      - ./docker/srv:/srv
+      - ./docker/settings.ini:/app/settings.ini
+    environment:
+      - POSTFIX_MILTER_LOGLEVEL=debug
+    depends_on:
+      - postfix-relay
+      - postfix-maildir

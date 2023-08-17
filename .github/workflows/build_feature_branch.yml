@@ -1,0 +1,168 @@
+---
+# yamllint disable rule:line-length
+# yamllint disable rule:truthy
+
+name: Build feature branch
+
+on:
+  push:
+    branches:
+      - '!build_*'
+      - '!master'
+      - '*'
+
+jobs:
+
+  notify_started:
+    name: Send notification on start
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Send notification on start
+        uses: rest-gateway/notification-action@1.0.9
+        with:
+          message: |
+            <b>Workflow:</b> <code>${GITHUB_WORKFLOW}</code>
+            <b>Repository:</b> ${GITHUB_REPOSITORY} (${GITHUB_REF#refs/heads/})
+            <b>URL:</b> <code>https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}</code>
+          recipient: "${{ secrets.NOTIFICATIONS_DEFAULT_RECIPIENT }}"
+          rest_gateway_url: "${{ secrets.REST_GATEWAY_API_URL }}"
+          rest_gateway_token: "${{ secrets.REST_GATEWAY_TOKEN }}"
+          rest_gateway_bot_name: "${{ secrets.REST_GATEWAY_BOT_NAME }}"
+
+
+  validate_new_version:
+    name: Validate new version
+    runs-on: ubuntu-latest
+    outputs:
+      planned_version: ${{ steps.validate_new_version.outputs.planned_version }}
+      planned_version_commit: ${{ steps.get_version_commit.outputs.version_commit }}
+      version_file_exists: ${{ steps.validate_new_version.outputs.version_file_exists }}
+      tag_hash: ${{ steps.validate_new_version.outputs.tag_hash }}
+      can_create: ${{ steps.validate_new_version.outputs.can_create }}
+      tag_exists: ${{ steps.validate_new_version.outputs.tag_exists }}
+      branch_name: ${{ steps.validate_new_version.outputs.branch_name }}
+
+    steps:
+
+      - name: Check out this repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+
+      - name: Workaround the version file format
+        id: prepare_version_file
+        shell: bash
+        run: >-
+          grep __version__ milter_framework/_version.py | cut -d "=" -f 2 | tr -d '"' > .version
+
+
+      - name: Use latest released action
+        id: validate_new_version
+        uses: reinvented-stuff/validate-version-action@1.2.0
+        with:
+          version_filename: ".version"
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          fail_on_error: false
+
+
+
+  build_and_test:
+    name: Build and test
+
+    outputs:
+      job_status: ${{ job.status }}
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - validate_new_version
+
+    env:
+      PLANNED_VERSION: ${{ needs.validate_new_version.outputs.planned_version }}
+      PLANNED_VERSION_COMMIT: ${{ needs.validate_new_version.outputs.planned_version_commit }}
+      TAG_HASH: ${{ needs.validate_new_version.outputs.tag_hash }}
+      CAN_CREATE_RELEASE: ${{ needs.validate_new_version.outputs.can_create }}
+      TAG_EXISTS: ${{ needs.validate_new_version.outputs.tag_exists }}
+      BRANCH_NAME: ${{ needs.validate_new_version.outputs.branch_name }}
+      APP_NAME: "milter_framework"
+
+    steps:
+
+      - name: Check out this repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+
+      - name: SonarCloud Scan
+        id: sonarcloud_scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_SCANNER_OPTS: >-
+            -Dsonar.projectKey=${{ github.event.repository.name }}
+            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.sources=.
+            -Dsonar.verbose=true
+
+
+      - name: Send notification on build completion
+        uses: rest-gateway/notification-action@1.0.9
+        if: always()
+        with:
+          message: |
+            <b>Workflow:</b>   ${GITHUB_WORKFLOW}
+            <b>Repository:</b> ${GITHUB_REPOSITORY}
+
+            <b>Matrix:</b>
+            Version: ${{ matrix.version }}
+            Ref: ${{ env.PLANNED_VERSION_COMMIT }}
+            Label: ${{ matrix.runs-on.label }}
+            Arch: ${{ matrix.runs-on.arch }}
+
+            <b>Outcome:</b> 
+            checkout_tdlib_repo: ${{ steps.checkout_tdlib_repo.outcome }}
+            sonarcloud_scan: ${{ steps.sonarcloud_scan.outcome }}
+
+            <b>Run:</b> <code>https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}</code>
+            <b>Artifact:</b> ${{ secrets.ARTIFACTORY_REPO_URL }}/${{ env.ARTIFACT_TARGZ_NAME }}
+            <b>Artifact repo:</b> ${{ secrets.ARTIFACTORY_REPO_URL }}
+
+          recipient: "${{ secrets.NOTIFICATIONS_DEFAULT_RECIPIENT }}"
+          rest_gateway_url: "${{ secrets.REST_GATEWAY_API_URL }}"
+          rest_gateway_token: "${{ secrets.REST_GATEWAY_TOKEN }}"
+          rest_gateway_bot_name: "${{ secrets.REST_GATEWAY_BOT_NAME }}"
+
+
+  after_build:
+    name: After build process
+    runs-on: ubuntu-latest
+
+    if: always()
+
+    needs:
+      - build_and_test
+
+    steps:
+
+      - name: Send notification on all builds finish
+        uses: rest-gateway/notification-action@1.0.9
+        with:
+          message: |
+            <b>Workflow:</b>   ${GITHUB_WORKFLOW}
+            <b>Repository:</b> ${GITHUB_REPOSITORY}
+
+            <b>Build and test:</b>
+            Status: ${{ needs.build_and_test.outputs.job_status }}
+
+          recipient: "${{ secrets.NOTIFICATIONS_DEFAULT_RECIPIENT }}"
+          rest_gateway_url: "${{ secrets.REST_GATEWAY_API_URL }}"
+          rest_gateway_token: "${{ secrets.REST_GATEWAY_TOKEN }}"
+          rest_gateway_bot_name: "${{ secrets.REST_GATEWAY_BOT_NAME }}"
+
+
+...
