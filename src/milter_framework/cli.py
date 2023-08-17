@@ -10,10 +10,10 @@
   CLI tool
 
   GitHub repository:
-  https://github.com/***
+  https://github.com/milter-framework/milter-framework
 
   Community support:
-  https://github.com/***/issues
+  https://github.com/milter-framework/milter-framework/issues
 
   Copyright © 2023, Pavel Kim
 

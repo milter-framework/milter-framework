@@ -16,6 +16,6 @@ from milter_framework.milter_framework import (
 )
 
 for finder, name, ispkg in pkgutil.iter_modules():
-    logging.warning(f"{name} {ispkg} {finder}")
+    logging.debug(f"pkgutil scan: {name} {ispkg} {finder}")
 
 from milter_framework import plugins
